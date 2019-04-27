@@ -53,7 +53,7 @@ def train(model, epoch, train_loader, optimizer):
         loss.backward()
         optimizer.step()
         training_loss += loss.data.item()
-        if batch_idx == 10:
+        if batch_idx == 4:
             break
     training_loss /= len(train_loader.dataset)
     return training_loss
@@ -68,7 +68,7 @@ def validation(model, val_loader):
         validation_loss += criterion(output, target).data.item() # sum up batch loss
         pred = output.data.max(1, keepdim=True)[1] # get the index of the max log-probability
         correct += pred.eq(target.data.view_as(pred)).cpu().sum()
-        if batch_idx == 10:
+        if batch_idx == 4:
             break
 
     validation_loss /= len(val_loader.dataset)
