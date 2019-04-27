@@ -1,0 +1,8 @@
+*~
+data
+runs
+saved_model
+*.pyc
+*.pth
+*.csv
+.DS_Store
