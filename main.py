@@ -155,6 +155,9 @@ if __name__ == '__main__':
     if not os.path.isdir("saved_model"):
         os.mkdir("saved_model")
 
+    if not os.path.isdir("data"):
+        os.mkdir("data")
+
     main(parser.parse_args())
     file.write("\n")
     file.close()
