@@ -10,7 +10,6 @@ class ResNet18(nn.Module):
     def __init__(self, nclasses):
         super(ResNet18, self).__init__()
         self.resnet = models.resnet34()
-        pdb.set_trace()
         num_ftrs = self.resnet.fc.in_features
         self.resnet.fc = nn.Linear(num_ftrs, nclasses)
 

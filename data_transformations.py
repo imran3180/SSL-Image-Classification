@@ -6,3 +6,8 @@ __all__ = ['tensor_transform']
 tensor_transform = transforms.Compose([
     transforms.ToTensor()
 ])
+
+resnet_input_transform = transforms.Compose([
+    transforms.Resize((224, 224)),
+    transforms.ToTensor(),
+])

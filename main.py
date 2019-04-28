@@ -14,6 +14,16 @@ import os
 import time
 import pdb
 
+# creating folders
+if not os.path.isdir("runs"):
+    os.mkdir("runs")
+
+if not os.path.isdir("saved_model"):
+    os.mkdir("saved_model")
+
+if not os.path.isdir("data"):
+    os.mkdir("data")
+
 # sanity check for some arguments
 model_names = sorted(name for name in models.__dict__
     if name.islower() and not name.startswith("__")
@@ -46,15 +56,13 @@ def train(model, epoch, train_loader, optimizer):
     model.train()
     training_loss = 0
     for batch_idx, (data, target) in enumerate(train_loader):
-        data, target = Variable(data.to(device)), Variable(target.to(device))
+        data, target = torch.tensor(data.to(device), requires_grad = True), torch.tensor(target.to(device))
         optimizer.zero_grad()
         output = model(data)
         loss = criterion(output, target)
         loss.backward()
         optimizer.step()
         training_loss += loss.data.item()
-        if batch_idx == 4:
-            break
     training_loss /= len(train_loader.dataset)
     return training_loss
 
@@ -63,14 +71,11 @@ def validation(model, val_loader):
     validation_loss = 0
     correct = 0
     for batch_idx, (data, target) in enumerate(val_loader):
-        data, target = Variable(data.to(device), volatile=True), Variable(target.to(device))
+        data, target = torch.tensor(data.to(device)), torch.tensor(target.to(device))
         output = model(data)
         validation_loss += criterion(output, target).data.item() # sum up batch loss
         pred = output.data.max(1, keepdim=True)[1] # get the index of the max log-probability
-        correct += pred.eq(target.data.view_as(pred)).cpu().sum()
-        if batch_idx == 4:
-            break
-
+        correct += pred.eq(target.data.view_as(pred)).cuda().sum()
     validation_loss /= len(val_loader.dataset)
     return validation_loss, correct.item(), len(val_loader.dataset)
 
@@ -79,18 +84,20 @@ def main(args):
     torch.manual_seed(args.seed)
     nclasses = datasets.__dict__[args.dataset].nclasses
     model = models.__dict__[args.arch](nclasses = nclasses)
-    # model = torch.nn.DataParallel(model).to(device)
+    model = torch.nn.DataParallel(model).to(device)
     model.to(device)
     optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
     train_loader, val_loader = make_loader(args)
     report = PrettyTable(['Epoch No #', 'Training loss', 'Validation loss', 'Accuracy', 'Correct', 'Total', 'Time in secs'])
     for epoch in range(1, args.epochs + 1):
-        print("processing epoch {} ...".format(epoch))
+        per_epoch = PrettyTable(['Epoch No #', 'Training loss', 'Validation loss', 'Accuracy', 'Correct', 'Total', 'Time in secs'])
         start_time = time.time()
         training_loss = train(model, epoch, train_loader, optimizer)
         validation_loss, correct, total = validation(model, val_loader)
         end_time = time.time()
-        report.add_row([epoch, round(training_loss, 4), round(validation_loss, 4), "{}%".format(round(correct/total, 3)), correct, total, round(end_time - start_time, 2)])
+        report.add_row([epoch, round(training_loss, 4), round(validation_loss, 4), "{:.3f}%".format(round((correct*100.0)/total, 3)), correct, total, round(end_time - start_time, 2)])
+        per_epoch.add_row([epoch, round(training_loss, 4), round(validation_loss, 4), "{:.3f}%".format(round((correct*100.0)/total, 3)), correct, total, round(end_time - start_time, 2)])
+        print(per_epoch)
         if args.save_model == 'y':
             val_folder = "saved_model/" + current_time
             if not os.path.isdir(val_folder):
@@ -147,16 +154,7 @@ if __name__ == '__main__':
     options.add_row(["save-model-folder", current_time])
     file.write(options.get_string())
     file.write("\n")
-
-    # creating folders
-    if not os.path.isdir("runs"):
-        os.mkdir("runs")
-
-    if not os.path.isdir("saved_model"):
-        os.mkdir("saved_model")
-
-    if not os.path.isdir("data"):
-        os.mkdir("data")
+    print(options)
 
     main(parser.parse_args())
     file.write("\n")

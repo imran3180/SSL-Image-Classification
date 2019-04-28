@@ -8,12 +8,12 @@ __all__ = ['conv_net']
 class ConvNet(nn.Module):
     def __init__(self, nclasses):
         super(ConvNet, self).__init__()
-        self.conv1 = nn.Conv2d(3, 32, kernel_size=5)
-        self.conv2 = nn.Conv2d(32, 128, kernel_size=3)
+        self.conv1 = nn.Conv2d(3, 64, kernel_size=5)
+        self.conv2 = nn.Conv2d(64, 128, kernel_size=3)
         self.conv3 = nn.Conv2d(128, 256, kernel_size=3)
         self.conv2_drop = nn.Dropout2d()
-        self.fc1 = nn.Linear(25600, 1024)
-        self.fc2 = nn.Linear(1024, nclasses)
+        self.fc1 = nn.Linear(25600, 2048)
+        self.fc2 = nn.Linear(2048, nclasses)
 
     def forward(self, x):
         x = F.relu(F.max_pool2d(self.conv2_drop(self.conv1(x)), 2))
