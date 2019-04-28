@@ -46,7 +46,7 @@ file = open("runs/run-" + current_time, "w")
 
 def make_loader(args):
     data_transforms = data_transformations.__dict__[args.data_transforms]
-    train_dataset = datasets.__dict__[args.dataset](is_train = True, data_transforms = data_transforms)
+    train_dataset = datasets.__dict__[args.dataset](is_train = True, supervised = True, data_transforms = data_transforms)
     val_dataset = datasets.__dict__[args.dataset](is_train = False, data_transforms = data_transforms)
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=1)
     val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, num_workers=1)
@@ -55,16 +55,19 @@ def make_loader(args):
 def train(model, epoch, train_loader, optimizer):
     model.train()
     training_loss = 0
+    correct = 0
     for batch_idx, (data, target) in enumerate(train_loader):
         data, target = torch.tensor(data.to(device), requires_grad = True), torch.tensor(target.to(device))
         optimizer.zero_grad()
         output = model(data)
         loss = criterion(output, target)
+        pred = output.data.max(1, keepdim=True)[1] # get the index of the max log-probability
+        correct += pred.eq(target.data.view_as(pred)).sum()
         loss.backward()
         optimizer.step()
         training_loss += loss.data.item()
     training_loss /= len(train_loader.dataset)
-    return training_loss
+    return training_loss, correct.item(), len(train_loader.dataset)
 
 def validation(model, val_loader):
     model.eval()
@@ -75,7 +78,7 @@ def validation(model, val_loader):
         output = model(data)
         validation_loss += criterion(output, target).data.item() # sum up batch loss
         pred = output.data.max(1, keepdim=True)[1] # get the index of the max log-probability
-        correct += pred.eq(target.data.view_as(pred)).cuda().sum()
+        correct += pred.eq(target.data.view_as(pred)).sum()
     validation_loss /= len(val_loader.dataset)
     return validation_loss, correct.item(), len(val_loader.dataset)
 
@@ -88,15 +91,15 @@ def main(args):
     model.to(device)
     optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
     train_loader, val_loader = make_loader(args)
-    report = PrettyTable(['Epoch No #', 'Training loss', 'Validation loss', 'Accuracy', 'Correct', 'Total', 'Time in secs'])
+    report = PrettyTable(['Epoch #', 'Train loss', 'Train Accuracy', 'Train Correct', 'Train Total', 'Val loss', 'Val Accuracy', 'Val Correct', 'Val Total', 'Time(secs)'])
     for epoch in range(1, args.epochs + 1):
-        per_epoch = PrettyTable(['Epoch No #', 'Training loss', 'Validation loss', 'Accuracy', 'Correct', 'Total', 'Time in secs'])
+        per_epoch = PrettyTable(['Epoch #', 'Train loss', 'Train Accuracy', 'Train Correct', 'Train Total', 'Val loss', 'Val Accuracy', 'Val Correct', 'Val Total', 'Time(secs)'])
         start_time = time.time()
-        training_loss = train(model, epoch, train_loader, optimizer)
-        validation_loss, correct, total = validation(model, val_loader)
+        training_loss, train_correct, train_total = train(model, epoch, train_loader, optimizer)
+        validation_loss, val_correct, val_total = validation(model, val_loader)
         end_time = time.time()
-        report.add_row([epoch, round(training_loss, 4), round(validation_loss, 4), "{:.3f}%".format(round((correct*100.0)/total, 3)), correct, total, round(end_time - start_time, 2)])
-        per_epoch.add_row([epoch, round(training_loss, 4), round(validation_loss, 4), "{:.3f}%".format(round((correct*100.0)/total, 3)), correct, total, round(end_time - start_time, 2)])
+        report.add_row([epoch, round(training_loss, 4), "{:.3f}%".format(round((train_correct*100.0)/train_total, 3)), train_correct, train_total, round(validation_loss, 4), "{:.3f}%".format(round((val_correct*100.0)/val_total, 3)), val_correct, val_total, round(end_time - start_time, 2)])
+        per_epoch.add_row([epoch, round(training_loss, 4), "{:.3f}%".format(round((train_correct*100.0)/train_total, 3)), train_correct, train_total, round(validation_loss, 4), "{:.3f}%".format(round((val_correct*100.0)/val_total, 3)), val_correct, val_total, round(end_time - start_time, 2)])
         print(per_epoch)
         if args.save_model == 'y':
             val_folder = "saved_model/" + current_time
@@ -112,7 +115,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='PyTorch GTSRB example')
     parser.add_argument('--batch-size', type=int, default=64, metavar='N',
                         help='input batch size for training (default: 64)')
-    parser.add_argument('--epochs', type=int, default=3, metavar='N',
+    parser.add_argument('--epochs', type=int, default=2, metavar='N',
                         help='number of epochs to train (default: 10)')
     parser.add_argument('--lr', type=float, default=0.01, metavar='LR',
                         help='learning rate (default: 0.01)')

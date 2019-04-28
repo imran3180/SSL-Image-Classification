@@ -9,7 +9,7 @@ __all__ = ['resnet18']
 class ResNet18(nn.Module):
     def __init__(self, nclasses):
         super(ResNet18, self).__init__()
-        self.resnet = models.resnet34()
+        self.resnet = models.resnet18()
         num_ftrs = self.resnet.fc.in_features
         self.resnet.fc = nn.Linear(num_ftrs, nclasses)
 

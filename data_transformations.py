@@ -11,3 +11,8 @@ resnet_input_transform = transforms.Compose([
     transforms.Resize((224, 224)),
     transforms.ToTensor(),
 ])
+
+cifar10_input_transform = transforms.Compose([
+    transforms.Resize((48, 48)),
+    transforms.ToTensor(),
+])
