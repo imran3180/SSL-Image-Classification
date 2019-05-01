@@ -204,12 +204,12 @@ if __name__ == '__main__':
     print(options)
 
     if args.hyper_param == 'LR':
-        report = PrettyTable(['LR', 'Best Val loss'])
+        tuning_report = PrettyTable(['LR', 'Best Val loss'])
         lrs = [10.0**j for j in range(-6,1,1)]
         for lr in lrs:
             best_val_loss = main(parser.parse_args())
-            report.add_row([lr, best_val_loss])
-
+            tuning_report.add_row([lr, best_val_loss])
+        file.write(tuning_report.get_string())
     # best_validation_loss = main(parser.parse_args())
     file.write("\n")
     file.close()
