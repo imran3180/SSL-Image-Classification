@@ -170,8 +170,7 @@ if __name__ == '__main__':
                         help="Do you want to save models for this run or not. (y) for saving the model")
     parser.add_argument('--model_save_interval', type=int, default=50, metavar='D',
                         help="No of epochs after which you want to save models for this run")
-    parser.add_argument('--label', type=str, metavar='D', required=True,
-                        help="label for this run")
+    parser.add_argument('--label', type=str, metavar='D', help="label for this run")
     
     # Model structure
     parser.add_argument('--arch', '-a', metavar='ARCH', default='vae_net',
@@ -209,8 +208,28 @@ if __name__ == '__main__':
         tuning_report = PrettyTable(['LR', 'Best Val loss'])
         lrs = [10.0**j for j in range(-6,1,1)]
         for lr in lrs:
-            best_val_loss = main(parser.parse_args())
+            args.lr = lr
+            args.label = args.hyper_param + ':' + str(lr)
+            best_val_loss = main(args)
             tuning_report.add_row([lr, best_val_loss])
+        file.write(tuning_report.get_string())
+    elif args.hyper_param == 'BS':
+        tuning_report = PrettyTable(['BS', 'Best Val loss'])
+        batch_sizes = [2**j for j in range(3,9,1)]
+        for bs in batch_sizes:
+            args.batch_size = bs
+            args.label = args.hyper_param + ':' + str(bs)
+            best_val_loss = main(args)
+            tuning_report.add_row([bs, best_val_loss])
+        file.write(tuning_report.get_string())
+    elif args.hyper_param == 'EPOCH':
+        tuning_report = PrettyTable(['EPOCH', 'Best Val loss'])
+        epochs = [j for j in range(200, 1050, 200)]
+        for epoch in epochs:
+            args.epochs = epoch
+            args.label = args.hyper_param + ':' + str(epoch)
+            best_val_loss = main(args)
+            tuning_report.add_row([epoch, best_val_loss])
         file.write(tuning_report.get_string())
     # best_validation_loss = main(parser.parse_args())
     file.write("\n")
