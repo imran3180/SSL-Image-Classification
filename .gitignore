@@ -2,6 +2,7 @@
 data
 runs
 saved_model
+images
 *.pyc
 *.pth
 *.csv
