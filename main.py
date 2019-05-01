@@ -7,12 +7,14 @@ import torch.optim as optim
 from torch.autograd import Variable
 import models
 import datasets
+import algorithms
 import data_transformations
 from prettytable import PrettyTable
 import datetime
 import os
 import time
 import pdb
+
 
 # creating folders
 if not os.path.isdir("runs"):
@@ -37,96 +39,14 @@ transformations_names = sorted(name for name in data_transformations.__dict__
     if name.islower() and not name.startswith("__")
     and callable(data_transformations.__dict__[name]))
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+algortihms_names = sorted(name for name in algorithms.__dict__
+    if name.islower() and not name.startswith("__")
+    and callable(algorithms.__dict__[name]))
 
-criterion = nn.NLLLoss().to(device)
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 current_time = str(datetime.datetime.now().strftime("%d-%m-%Y_%H-%M-%S"))
 file = open("runs/run-" + current_time, "w")
-
-def make_loader(args):
-    data_transforms = data_transformations.__dict__[args.data_transforms]
-    train_dataset = datasets.__dict__[args.dataset](is_train = True, supervised = True, data_transforms = data_transforms)
-    val_dataset = datasets.__dict__[args.dataset](is_train = False, data_transforms = data_transforms)
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=1)
-    val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, num_workers=1)
-    return train_loader, val_loader
-
-def accuracy(output, target, topk=(1,)):
-    """Computes the accuracy over the k top predictions for the specified values of k"""
-    with torch.no_grad():
-        maxk = max(topk)
-        batch_size = target.size(0)
-
-        _, pred = output.topk(maxk, 1, True, True)
-        pred = pred.t()
-        correct = pred.eq(target.view(1, -1).expand_as(pred))
-
-        res = []
-        for k in topk:
-            correct_k = correct[:k].view(-1).sum()
-            res.append(correct_k)
-        return res
-
-def train(model, epoch, train_loader, optimizer):
-    model.train()
-    training_loss = 0
-    correct = 0
-    for batch_idx, (data, target) in enumerate(train_loader):
-        data, target = torch.tensor(data.to(device), requires_grad = True), torch.tensor(target.to(device))
-        optimizer.zero_grad()
-        output = model(data)
-        loss = criterion(output, target)
-        correct += accuracy(output, target, topk=(1,))[0]
-        loss.backward()
-        optimizer.step()
-        training_loss += loss.data.item()
-    training_loss /= len(train_loader.dataset)
-    return training_loss, correct.item(), len(train_loader.dataset)
-
-def validation(model, val_loader):
-    model.eval()
-    validation_loss = 0
-    correct1 = 0
-    correct5 = 0
-    with torch.no_grad():
-        for batch_idx, (data, target) in enumerate(val_loader):
-            data, target = torch.tensor(data.to(device)), torch.tensor(target.to(device))
-            output = model(data)
-            validation_loss += criterion(output, target).data.item() # sum up batch loss
-            counts = accuracy(output, target, topk=(1, 5))
-            correct1 += counts[0]
-            correct5 += counts[1]
-        validation_loss /= len(val_loader.dataset)
-    return validation_loss, correct1.item(), correct5.item(), len(val_loader.dataset)
-
-
-def main(args):
-    torch.manual_seed(args.seed)
-    nclasses = datasets.__dict__[args.dataset].nclasses
-    model = models.__dict__[args.arch](nclasses = nclasses)
-    model = torch.nn.DataParallel(model).to(device)
-    model.to(device)
-    optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
-    train_loader, val_loader = make_loader(args)
-    report = PrettyTable(['Epoch #', 'Train loss', 'Train Accuracy', 'Train Correct', 'Train Total', 'Val loss', 'Top-1 Accuracy', 'Top-5 Accuracy', 'Top-1 Correct', 'Top-5 Correct', 'Val Total', 'Time(secs)'])
-    for epoch in range(1, args.epochs + 1):
-        per_epoch = PrettyTable(['Epoch #', 'Train loss', 'Train Accuracy', 'Train Correct', 'Train Total', 'Val loss', 'Top-1 Accuracy', 'Top-5 Accuracy', 'Top-1 Correct', 'Top-5 Correct', 'Val Total', 'Time(secs)'])
-        start_time = time.time()
-        training_loss, train_correct, train_total = train(model, epoch, train_loader, optimizer)
-        validation_loss, val1_correct, val5_correct, val_total = validation(model, val_loader)
-        end_time = time.time()
-        report.add_row([epoch, round(training_loss, 4), "{:.3f}%".format(round((train_correct*100.0)/train_total, 3)), train_correct, train_total, round(validation_loss, 4), "{:.3f}%".format(round((val1_correct*100.0)/val_total, 3)), "{:.3f}%".format(round((val5_correct*100.0)/val_total, 3)), val1_correct, val5_correct, val_total, round(end_time - start_time, 2)])
-        per_epoch.add_row([epoch, round(training_loss, 4), "{:.3f}%".format(round((train_correct*100.0)/train_total, 3)), train_correct, train_total, round(validation_loss, 4), "{:.3f}%".format(round((val1_correct*100.0)/val_total, 3)), "{:.3f}%".format(round((val5_correct*100.0)/val_total, 3)), val1_correct, val5_correct, val_total, round(end_time - start_time, 2)])
-        print(per_epoch)
-        if args.save_model == 'y':
-            val_folder = "saved_model/" + current_time
-            if not os.path.isdir(val_folder):
-                os.mkdir(val_folder)
-            save_model_file = val_folder + '/model_' + str(epoch) +'.pth'
-            torch.save(model.state_dict(), save_model_file)
-        # print('\nSaved model to ' + model_file + '. You can run `python evaluate.py --model' + model_file + '` to generate the Kaggle formatted csv file')
-    file.write(report.get_string())
 
 
 if __name__ == '__main__':
@@ -141,12 +61,12 @@ if __name__ == '__main__':
                         help='SGD momentum (default: 0.5)')
     parser.add_argument('--seed', type=int, default=1, metavar='S',
                         help='random seed (default: 1)')
-    
-    parser.add_argument('--log_interval', type=int, default=10, metavar='N',
-                        help='how many batches to wait before logging training status')
 
     parser.add_argument('--save_model', type=str, default='n', metavar='D',
                         help="Do you want to save models for this run or not. (y) for saving the model")
+
+    parser.add_argument('--optim', type=str, default='SGD', metavar='D', choices = ['Adam', 'SGD'],
+                        help="Select an optimizer: ['Adam', 'SGD']")
 
     # Model structure
     parser.add_argument('--arch', '-a', metavar='ARCH', default='conv_net',
@@ -163,9 +83,16 @@ if __name__ == '__main__':
     # Data Transformation setting
     parser.add_argument('--data_transforms', metavar='DATA_TRANFORMS', default='tensor_transform',
                         choices=transformations_names,
-                        help='Datasets: ' +
+                        help='Transformations: ' +
                             ' | '.join(transformations_names) +
                             ' (default: tensor_transform)')
+
+    # Algorithm
+    parser.add_argument('--algortihm', metavar='ALGO', default='just_supervised',
+                        choices=algortihms_names,
+                        help='Algorithms: ' +
+                            ' | '.join(algortihms_names) +
+                            ' (default: just_supervised)')
     # Printing Information
     args = parser.parse_args()
     
@@ -176,7 +103,9 @@ if __name__ == '__main__':
     file.write(options.get_string())
     file.write("\n")
     print(options)
+    
+    # Calling the specific algorithm
+    algorithms.__dict__[args.algortihm](parser.parse_args(), device = device, file = file, current_time = current_time)
 
-    main(parser.parse_args())
     file.write("\n")
     file.close()

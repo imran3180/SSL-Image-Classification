@@ -13,7 +13,7 @@ tensor_transform = transforms.Compose([
 # Use for the SSL dataset
 resnet_input_transform = transforms.Compose([
 	transforms.RandomAffine((-5,5), translate=(0.1,0.1), scale=(0.9, 1.1), shear=None, resample=False, fillcolor=0),
-    transforms.Resize((224, 224)),
+    transforms.Resize((96, 96)),
     transforms.ToTensor(),
     transforms.Normalize((0.5032, 0.4746, 0.4275), (0.2276, 0.2228, 0.2265))
 ])

@@ -1,10 +1,42 @@
 # Just some utility functions
+import torch.optim as optim
 import datasets
 import torch
 import data_transformations
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+def make_loader(args):
+    data_transforms = data_transformations.__dict__[args.data_transforms]
+    train_dataset = datasets.__dict__[args.dataset](is_train = True, supervised = True, data_transforms = data_transforms)
+    val_dataset = datasets.__dict__[args.dataset](is_train = False, data_transforms = data_transforms)
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=1)
+    val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, num_workers=1)
+    return train_loader, val_loader
+
+def select_optimizer(args, model):
+    if args.optim == "SGD":
+        optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
+    elif args.optim == "Adam":
+        optimizer = optim.Adam(model.parameters(), lr=0.001, betas=(0.9, 0.999), eps=1e-08, weight_decay=0, amsgrad=False)
+    return optimizer
+
+
+def accuracy(output, target, topk=(1,)):
+    """Computes the accuracy over the k top predictions for the specified values of k"""
+    with torch.no_grad():
+        maxk = max(topk)
+        batch_size = target.size(0)
+
+        _, pred = output.topk(maxk, 1, True, True)
+        pred = pred.t()
+        correct = pred.eq(target.view(1, -1).expand_as(pred))
+
+        res = []
+        for k in topk:
+            correct_k = correct[:k].view(-1).sum()
+            res.append(correct_k)
+        return res
 
 
 def compute_mean_and_std():
