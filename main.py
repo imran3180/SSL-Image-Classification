@@ -100,7 +100,8 @@ def validation(model, val_loader, epoch):
             data = data.to(device)
             output, mu, logvar = model(data)
             validation_loss += loss_function(output, data, mu, logvar).item() # sum up batch loss
-            if epoch % args.model_save_interval == 0:
+            if epoch % args.model_save_interval == 0 and batch_idx == 0:
+                start_time = time.time()
                 mini_batch_size = 5
                 plot_input = data[0:5, :]
                 plot_output = output[0:5, :]
@@ -109,6 +110,8 @@ def validation(model, val_loader, epoch):
                 plot_grid(F, plot_input, plot_output, mini_batch_size)
                 plt.savefig("images/" + args.label + "_" +  str(epoch) + ".jpg")
                 plt.show()
+                end_time = time.time()
+                print('saving time:', round(end_time-start_time, 2))
     validation_loss /= len(val_loader.dataset)
     return validation_loss, len(val_loader.dataset)
 
