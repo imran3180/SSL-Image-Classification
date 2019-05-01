@@ -8,7 +8,7 @@ import torchvision
 
 class CIFAR10Dataset(Dataset):
 	def __init__(self, is_train = True, supervised = True, data_transforms = None):
-		self.data = list(torchvision.datasets.CIFAR10("data/", train = True, transform = data_transforms, download = True))
+		self.data = list(torchvision.datasets.CIFAR10("data/", train = True, transform = data_transforms, download = False))
 		shuffle(self.data)
 		if is_train:
 			if supervised:

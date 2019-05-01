@@ -52,6 +52,22 @@ def make_loader(args):
     val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, num_workers=1)
     return train_loader, val_loader
 
+def accuracy(output, target, topk=(1,)):
+    """Computes the accuracy over the k top predictions for the specified values of k"""
+    with torch.no_grad():
+        maxk = max(topk)
+        batch_size = target.size(0)
+
+        _, pred = output.topk(maxk, 1, True, True)
+        pred = pred.t()
+        correct = pred.eq(target.view(1, -1).expand_as(pred))
+
+        res = []
+        for k in topk:
+            correct_k = correct[:k].view(-1).sum()
+            res.append(correct_k)
+        return res
+
 def train(model, epoch, train_loader, optimizer):
     model.train()
     training_loss = 0
@@ -61,8 +77,7 @@ def train(model, epoch, train_loader, optimizer):
         optimizer.zero_grad()
         output = model(data)
         loss = criterion(output, target)
-        pred = output.data.max(1, keepdim=True)[1] # get the index of the max log-probability
-        correct += pred.eq(target.data.view_as(pred)).sum()
+        correct += accuracy(output, target, topk=(1,))[0]
         loss.backward()
         optimizer.step()
         training_loss += loss.data.item()
@@ -72,15 +87,18 @@ def train(model, epoch, train_loader, optimizer):
 def validation(model, val_loader):
     model.eval()
     validation_loss = 0
-    correct = 0
-    for batch_idx, (data, target) in enumerate(val_loader):
-        data, target = torch.tensor(data.to(device)), torch.tensor(target.to(device))
-        output = model(data)
-        validation_loss += criterion(output, target).data.item() # sum up batch loss
-        pred = output.data.max(1, keepdim=True)[1] # get the index of the max log-probability
-        correct += pred.eq(target.data.view_as(pred)).sum()
-    validation_loss /= len(val_loader.dataset)
-    return validation_loss, correct.item(), len(val_loader.dataset)
+    correct1 = 0
+    correct5 = 0
+    with torch.no_grad():
+        for batch_idx, (data, target) in enumerate(val_loader):
+            data, target = torch.tensor(data.to(device)), torch.tensor(target.to(device))
+            output = model(data)
+            validation_loss += criterion(output, target).data.item() # sum up batch loss
+            counts = accuracy(output, target, topk=(1, 5))
+            correct1 += counts[0]
+            correct5 += counts[1]
+        validation_loss /= len(val_loader.dataset)
+    return validation_loss, correct1.item(), correct5.item(), len(val_loader.dataset)
 
 
 def main(args):
@@ -91,15 +109,15 @@ def main(args):
     model.to(device)
     optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
     train_loader, val_loader = make_loader(args)
-    report = PrettyTable(['Epoch #', 'Train loss', 'Train Accuracy', 'Train Correct', 'Train Total', 'Val loss', 'Val Accuracy', 'Val Correct', 'Val Total', 'Time(secs)'])
+    report = PrettyTable(['Epoch #', 'Train loss', 'Train Accuracy', 'Train Correct', 'Train Total', 'Val loss', 'Top-1 Accuracy', 'Top-5 Accuracy', 'Top-1 Correct', 'Top-5 Correct', 'Val Total', 'Time(secs)'])
     for epoch in range(1, args.epochs + 1):
-        per_epoch = PrettyTable(['Epoch #', 'Train loss', 'Train Accuracy', 'Train Correct', 'Train Total', 'Val loss', 'Val Accuracy', 'Val Correct', 'Val Total', 'Time(secs)'])
+        per_epoch = PrettyTable(['Epoch #', 'Train loss', 'Train Accuracy', 'Train Correct', 'Train Total', 'Val loss', 'Top-1 Accuracy', 'Top-5 Accuracy', 'Top-1 Correct', 'Top-5 Correct', 'Val Total', 'Time(secs)'])
         start_time = time.time()
         training_loss, train_correct, train_total = train(model, epoch, train_loader, optimizer)
-        validation_loss, val_correct, val_total = validation(model, val_loader)
+        validation_loss, val1_correct, val5_correct, val_total = validation(model, val_loader)
         end_time = time.time()
-        report.add_row([epoch, round(training_loss, 4), "{:.3f}%".format(round((train_correct*100.0)/train_total, 3)), train_correct, train_total, round(validation_loss, 4), "{:.3f}%".format(round((val_correct*100.0)/val_total, 3)), val_correct, val_total, round(end_time - start_time, 2)])
-        per_epoch.add_row([epoch, round(training_loss, 4), "{:.3f}%".format(round((train_correct*100.0)/train_total, 3)), train_correct, train_total, round(validation_loss, 4), "{:.3f}%".format(round((val_correct*100.0)/val_total, 3)), val_correct, val_total, round(end_time - start_time, 2)])
+        report.add_row([epoch, round(training_loss, 4), "{:.3f}%".format(round((train_correct*100.0)/train_total, 3)), train_correct, train_total, round(validation_loss, 4), "{:.3f}%".format(round((val1_correct*100.0)/val_total, 3)), "{:.3f}%".format(round((val5_correct*100.0)/val_total, 3)), val1_correct, val5_correct, val_total, round(end_time - start_time, 2)])
+        per_epoch.add_row([epoch, round(training_loss, 4), "{:.3f}%".format(round((train_correct*100.0)/train_total, 3)), train_correct, train_total, round(validation_loss, 4), "{:.3f}%".format(round((val1_correct*100.0)/val_total, 3)), "{:.3f}%".format(round((val5_correct*100.0)/val_total, 3)), val1_correct, val5_correct, val_total, round(end_time - start_time, 2)])
         print(per_epoch)
         if args.save_model == 'y':
             val_folder = "saved_model/" + current_time
