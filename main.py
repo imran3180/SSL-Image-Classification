@@ -143,7 +143,7 @@ def main(args):
             if not os.path.isdir(val_folder):
                 os.mkdir(val_folder)
             if(epoch % args.model_save_interval == 0):
-                save_model_file = val_folder + '/model_' + str(epoch) +'.pth'
+                save_model_file = val_folder + '/model_' + args.label + ':' + str(epoch) +'.pth'
                 torch.save(model.state_dict(), save_model_file)
         # print('\nSaved model to ' + model_file + '. You can run `python evaluate.py --model' + model_file + '` to generate the Kaggle formatted csv file')
         if best_validation_loss==0 or (validation_loss < best_validation_loss):
@@ -168,7 +168,7 @@ if __name__ == '__main__':
                         help="Do you want to save models for this run or not. (y) for saving the model")
     parser.add_argument('--model_save_interval', type=int, default=50, metavar='D',
                         help="No of epochs after which you want to save models for this run")
-    parser.add_argument('--label', type=str, default='new', metavar='D',
+    parser.add_argument('--label', type=str, metavar='D', required=True,
                         help="label for this run")
     
     # Model structure
