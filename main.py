@@ -9,10 +9,15 @@ import models
 import datasets
 import data_transformations
 from prettytable import PrettyTable
+import matplotlib 
 import datetime
 import os
 import time
 import pdb
+import numpy as np
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+from mpl_toolkits.axes_grid1 import ImageGrid
 
 # creating folders
 if not os.path.isdir("runs"):
@@ -23,6 +28,9 @@ if not os.path.isdir("saved_model"):
 
 if not os.path.isdir("data"):
     os.mkdir("data")
+
+if not os.path.isdir("images"):
+    os.mkdir("images")
 
 # sanity check for some arguments
 model_names = sorted(name for name in models.__dict__
@@ -39,10 +47,25 @@ transformations_names = sorted(name for name in data_transformations.__dict__
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-criterion = nn.NLLLoss().to(device)
+def loss_function(x_hat, x, mu, logvar):
+    BCE = nn.functional.binary_cross_entropy(
+        x_hat, x.view(-1, 1024), reduction='sum'
+    )
+    KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+    return BCE + KLD
 
 current_time = str(datetime.datetime.now().strftime("%d-%m-%Y_%H-%M-%S"))
 file = open("runs/run-" + current_time, "w")
+
+def plot_grid(fig, plot_input, actual_output, row_no):
+    grid = ImageGrid(fig, 121, nrows_ncols=(row_no, 2), axes_pad=0.05, label_mode="1")
+    actual_output = actual_output.view(-1, 32, 32)
+    for i in range(row_no):
+        for j in range(2):
+            if(j == 0):
+                grid[i*2+j].imshow(np.transpose(plot_input[i], (1, 2, 0)), interpolation="nearest")
+            if(j == 1):
+                grid[i*2+j].imshow(np.transpose(actual_output[i].detach().cpu().numpy(), (0, 1)), interpolation="nearest")
 
 def make_loader(args):
     data_transforms = data_transformations.__dict__[args.data_transforms]
@@ -52,68 +75,77 @@ def make_loader(args):
     val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, num_workers=1)
     return train_loader, val_loader
 
-def train(model, epoch, train_loader, optimizer):
+def train_unsupervised(model, epoch, train_loader, optimizer):
     model.train()
     training_loss = 0
-    correct = 0
-    for batch_idx, (data, target) in enumerate(train_loader):
-        data, target = torch.tensor(data.to(device), requires_grad = True), torch.tensor(target.to(device))
+    for batch_idx, (data, _) in enumerate(train_loader):
+        data = data.to(device)
+        # ===================forward=====================
         optimizer.zero_grad()
-        output = model(data)
-        loss = criterion(output, target)
-        pred = output.data.max(1, keepdim=True)[1] # get the index of the max log-probability
-        correct += pred.eq(target.data.view_as(pred)).sum()
+        output, mu, logvar  = model(data)
+        loss = loss_function(output, data, mu, logvar)
         loss.backward()
         optimizer.step()
-        training_loss += loss.data.item()
+        training_loss += loss.item()
     training_loss /= len(train_loader.dataset)
-    return training_loss, correct.item(), len(train_loader.dataset)
+    return training_loss, len(train_loader.dataset)
 
-def validation(model, val_loader):
-    model.eval()
-    validation_loss = 0
-    correct = 0
-    for batch_idx, (data, target) in enumerate(val_loader):
-        data, target = torch.tensor(data.to(device)), torch.tensor(target.to(device))
-        output = model(data)
-        validation_loss += criterion(output, target).data.item() # sum up batch loss
-        pred = output.data.max(1, keepdim=True)[1] # get the index of the max log-probability
-        correct += pred.eq(target.data.view_as(pred)).sum()
+def validation(model, val_loader, epoch):
+    with torch.no_grad():
+        model.eval()
+        validation_loss = 0
+        for batch_idx, (data, _) in enumerate(val_loader):
+            data = data.to(device)
+            output, mu, logvar = model(data)
+            validation_loss += loss_function(output, data, mu, logvar).item() # sum up batch loss
+            if epoch % args.model_save_interval == 0:
+                mini_batch_size = 5
+                plot_input = data[0:5, :]
+                plot_output = output[0:5, :]
+                F = plt.figure(1, (30, 60))
+                F.subplots_adjust(left=0.05, right=0.95)
+                plot_grid(F, plot_input, plot_output, mini_batch_size)
+                plt.savefig("images/" + args.label + "_" +  str(epoch) + ".jpg")
+                plt.show()
     validation_loss /= len(val_loader.dataset)
-    return validation_loss, correct.item(), len(val_loader.dataset)
-
+    return validation_loss, len(val_loader.dataset)
 
 def main(args):
     torch.manual_seed(args.seed)
     nclasses = datasets.__dict__[args.dataset].nclasses
-    model = models.__dict__[args.arch](nclasses = nclasses)
+    model = models.__dict__[args.arch](latent_size = nclasses)
     model = torch.nn.DataParallel(model).to(device)
     model.to(device)
-    optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
+    optimizer = torch.optim.Adam(model.parameters(),lr=args.lr,)
     train_loader, val_loader = make_loader(args)
-    report = PrettyTable(['Epoch #', 'Train loss', 'Train Accuracy', 'Train Correct', 'Train Total', 'Val loss', 'Val Accuracy', 'Val Correct', 'Val Total', 'Time(secs)'])
+    report = PrettyTable(['Epoch #', 'Train loss', 'Train Total', 'Val loss', 'Val Total', 'Time(secs)'])
     for epoch in range(1, args.epochs + 1):
-        per_epoch = PrettyTable(['Epoch #', 'Train loss', 'Train Accuracy', 'Train Correct', 'Train Total', 'Val loss', 'Val Accuracy', 'Val Correct', 'Val Total', 'Time(secs)'])
+        # ===================pretty printing and logging=====================
+        per_epoch = PrettyTable(['Epoch #', 'Train loss', 'Train Total', 'Val loss', 'Val Total', 'Time(secs)'])
         start_time = time.time()
-        training_loss, train_correct, train_total = train(model, epoch, train_loader, optimizer)
-        validation_loss, val_correct, val_total = validation(model, val_loader)
+        # ===================train and validate=====================
+        training_loss, train_total = train_unsupervised(model, epoch, train_loader, optimizer)
+        validation_loss,val_total = validation(model, val_loader, epoch)
+        # ===================pretty printing and logging=====================
         end_time = time.time()
-        report.add_row([epoch, round(training_loss, 4), "{:.3f}%".format(round((train_correct*100.0)/train_total, 3)), train_correct, train_total, round(validation_loss, 4), "{:.3f}%".format(round((val_correct*100.0)/val_total, 3)), val_correct, val_total, round(end_time - start_time, 2)])
-        per_epoch.add_row([epoch, round(training_loss, 4), "{:.3f}%".format(round((train_correct*100.0)/train_total, 3)), train_correct, train_total, round(validation_loss, 4), "{:.3f}%".format(round((val_correct*100.0)/val_total, 3)), val_correct, val_total, round(end_time - start_time, 2)])
+        report.add_row([epoch, round(training_loss, 4), train_total, round(validation_loss, 4), val_total, round(end_time - start_time, 2)])
+        per_epoch.add_row([epoch, round(training_loss, 4), train_total, round(validation_loss, 4), val_total, round(end_time - start_time, 2)])
         print(per_epoch)
+        # ===================saving model=====================
         if args.save_model == 'y':
             val_folder = "saved_model/" + current_time
             if not os.path.isdir(val_folder):
                 os.mkdir(val_folder)
-            save_model_file = val_folder + '/model_' + str(epoch) +'.pth'
-            torch.save(model.state_dict(), save_model_file)
+            if(epoch % args.model_save_interval == 0):
+                save_model_file = val_folder + '/model_' + str(epoch) +'.pth'
+                torch.save(model.state_dict(), save_model_file)
         # print('\nSaved model to ' + model_file + '. You can run `python evaluate.py --model' + model_file + '` to generate the Kaggle formatted csv file')
     file.write(report.get_string())
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='PyTorch GTSRB example')
-    parser.add_argument('--batch-size', type=int, default=64, metavar='N',
+    parser.add_argument('--batch_size', type=int, default=64, metavar='N',
                         help='input batch size for training (default: 64)')
     parser.add_argument('--epochs', type=int, default=2, metavar='N',
                         help='number of epochs to train (default: 10)')
@@ -123,13 +155,15 @@ if __name__ == '__main__':
                         help='SGD momentum (default: 0.5)')
     parser.add_argument('--seed', type=int, default=1, metavar='S',
                         help='random seed (default: 1)')
-    
     parser.add_argument('--log_interval', type=int, default=10, metavar='N',
                         help='how many batches to wait before logging training status')
-
     parser.add_argument('--save_model', type=str, default='n', metavar='D',
                         help="Do you want to save models for this run or not. (y) for saving the model")
-
+    parser.add_argument('--model_save_interval', type=int, default=50, metavar='D',
+                        help="No of epochs after which you want to save models for this run")
+    parser.add_argument('--label', type=str, default='n', metavar='D',
+                        help="label for this run")
+    
     # Model structure
     parser.add_argument('--arch', '-a', metavar='ARCH', default='conv_net',
                         choices=model_names,
@@ -150,7 +184,7 @@ if __name__ == '__main__':
                             ' (default: tensor_transform)')
     # Printing Information
     args = parser.parse_args()
-    
+
     options = PrettyTable(['option', 'Value'])
     for key, val in vars(args).items():
         options.add_row([key, val])
