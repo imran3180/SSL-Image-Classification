@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import pdb
 
-class VAE(nn.Module):
+class AE(nn.Module):
     def __init__(self, d):
         super().__init__()
         self.d = d
@@ -11,9 +11,9 @@ class VAE(nn.Module):
         self.encoder = nn.Sequential(
             nn.Linear(1024, 512),
             nn.ReLU(),
-	        nn.Linear(512, 256),
+            nn.Linear(512, 256),
             nn.ReLU(),
-            nn.Linear(256, d * 2)
+            nn.Linear(256, d)
         )
 
         self.decoder = nn.Sequential(
@@ -34,12 +34,9 @@ class VAE(nn.Module):
             return mu
 
     def forward(self, x):
-        mu_logvar = self.encoder(x.view(-1, 1024)).view(-1, 2, self.d)
-        mu = mu_logvar[:, 0, :]
-        logvar = mu_logvar[:, 1, :]
-        z = self.reparameterise(mu, logvar)
-        return self.decoder(z), mu, logvar
+        z = self.encoder(x.view(-1, 1024)).view(-1, self.d)
+        return self.decoder(z)
 
-def vae_net(**kwargs):
-    model = VAE(20)
+def ae_net(**kwargs):
+    model = AE(20)
     return model

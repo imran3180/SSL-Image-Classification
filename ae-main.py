@@ -49,12 +49,11 @@ transformations_names = sorted(name for name in data_transformations.__dict__
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-def loss_function(x_hat, x, mu, logvar):
+def loss_function(x_hat, x):
     BCE = nn.functional.binary_cross_entropy(
         x_hat, x.view(-1, 1024), reduction='sum'
     )
-    KLD = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
-    return BCE + KLD
+    return BCE
 
 current_time = str(datetime.datetime.now().strftime("%d-%m-%Y_%H-%M-%S"))
 file = open("runs/run-" + current_time, "w")
@@ -84,8 +83,8 @@ def train_unsupervised(model, epoch, train_loader, optimizer):
         data = data.to(device)
         # ===================forward=====================
         optimizer.zero_grad()
-        output, mu, logvar  = model(data)
-        loss = loss_function(output, data, mu, logvar)
+        output = model(data)
+        loss = loss_function(output, data)
         loss.backward()
         optimizer.step()
         training_loss += loss.item()
@@ -98,8 +97,8 @@ def validation(model, val_loader, epoch):
         validation_loss = 0
         for batch_idx, (data, _) in enumerate(val_loader):
             data = data.to(device)
-            output, mu, logvar = model(data)
-            validation_loss += loss_function(output, data, mu, logvar).item() # sum up batch loss
+            output = model(data)
+            validation_loss += loss_function(output, data).item() # sum up batch loss
             if epoch % args.model_save_interval == 0 and batch_idx == 0:
                 start_time = time.time()
                 mini_batch_size = 5
