@@ -108,7 +108,10 @@ def validation(model, val_loader, epoch):
                 F = plt.figure(1, (30, 60))
                 F.subplots_adjust(left=0.05, right=0.95)
                 plot_grid(F, plot_input, plot_output, mini_batch_size)
-                plt.savefig("images/" + args.label + "_" +  str(epoch) + ".jpg")
+                images_folder = "images/" + current_time
+                if not os.path.isdir(images_folder):
+                    os.mkdir(images_folder)
+                plt.savefig(images_folder + '/' + args.label + "_" +  str(epoch) + ".jpg")
                 plt.show()
                 end_time = time.time()
                 print('saving time:', round(end_time-start_time, 2))
