@@ -15,7 +15,7 @@ class ResNet18(nn.Module):
 
     def forward(self, x):
         x = self.resnet(x)
-        return F.log_softmax(x, dim=1)
+        return x
 
 # model-name - should be same as value provided in the argument for model
 def resnet18(**kwargs):

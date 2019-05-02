@@ -5,9 +5,9 @@ import pdb
 import torchvision
 import random
 
-class CIFAR10Dataset(Dataset):
+class CIFAR100Dataset(Dataset):
 	def __init__(self, is_train = True, supervised = True, data_transforms = None):
-		self.data = list(torchvision.datasets.CIFAR10("data/", train = True, transform = data_transforms, download = False))
+		self.data = list(torchvision.datasets.CIFAR100("data/", train = True, transform = data_transforms, download = False))
 		random.shuffle(self.data)
 		if is_train:
 			if supervised:
@@ -25,7 +25,7 @@ class CIFAR10Dataset(Dataset):
 	def __getitem__(self, idx):
 		return self.data[idx]
 
-def cifar10(**kwargs):
-    return CIFAR10Dataset(**kwargs)
+def cifar100(**kwargs):
+    return CIFAR100Dataset(**kwargs)
 
-cifar10.nclasses = 10  # ugly but works
+cifar100.nclasses = 100  # ugly but works

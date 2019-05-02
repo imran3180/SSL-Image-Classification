@@ -39,7 +39,7 @@ transformations_names = sorted(name for name in data_transformations.__dict__
     if name.islower() and not name.startswith("__")
     and callable(data_transformations.__dict__[name]))
 
-algortihms_names = sorted(name for name in algorithms.__dict__
+algorithms_names = sorted(name for name in algorithms.__dict__
     if name.islower() and not name.startswith("__")
     and callable(algorithms.__dict__[name]))
 
@@ -51,8 +51,8 @@ file = open("runs/run-" + current_time, "w")
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='PyTorch GTSRB example')
-    parser.add_argument('--batch-size', type=int, default=64, metavar='N',
-                        help='input batch size for training (default: 64)')
+    parser.add_argument('--batch-size', type=int, default=32, metavar='N',
+                        help='input batch size for training (default: 32)')
     parser.add_argument('--epochs', type=int, default=2, metavar='N',
                         help='number of epochs to train (default: 10)')
     parser.add_argument('--lr', type=float, default=0.01, metavar='LR',
@@ -87,12 +87,15 @@ if __name__ == '__main__':
                             ' | '.join(transformations_names) +
                             ' (default: tensor_transform)')
 
-    # Algorithm
-    parser.add_argument('--algortihm', metavar='ALGO', default='just_supervised',
-                        choices=algortihms_names,
+    # Algorithm & Related Fields
+    parser.add_argument('--algorithm', metavar='ALGO', default='just_supervised',
+                        choices=algorithms_names,
                         help='Algorithms: ' +
-                            ' | '.join(algortihms_names) +
+                            ' | '.join(algorithms_names) +
                             ' (default: just_supervised)')
+    parser.add_argument('--tau', type=float, default=0.95, metavar='TAU', 
+        help='threeshold used by proxy label algorithm rate (default: 0.95)')
+
     # Printing Information
     args = parser.parse_args()
     
@@ -105,7 +108,7 @@ if __name__ == '__main__':
     print(options)
     
     # Calling the specific algorithm
-    algorithms.__dict__[args.algortihm](parser.parse_args(), device = device, file = file, current_time = current_time)
+    algorithms.__dict__[args.algorithm](parser.parse_args(), device = device, file = file, current_time = current_time)
 
     file.write("\n")
     file.close()

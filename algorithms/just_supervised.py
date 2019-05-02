@@ -57,9 +57,9 @@ def just_supervised(args, **kwargs):
     model = models.__dict__[args.arch](nclasses = nclasses)
     model = torch.nn.DataParallel(model).to(device)
     model.to(device)
-    criterion = nn.NLLLoss().to(device)
+    criterion = nn.CrossEntropyLoss().to(device)
     optimizer = utils.select_optimizer(args, model)
-    train_loader, val_loader = utils.make_loader(args)
+    train_loader, _, val_loader = utils.make_loader(args)
     report = PrettyTable(['Epoch #', 'Train loss', 'Train Accuracy', 'Train Correct', 'Train Total', 'Val loss', 'Top-1 Accuracy', 'Top-5 Accuracy', 'Top-1 Correct', 'Top-5 Correct', 'Val Total', 'Time(secs)'])
     for epoch in range(1, args.epochs + 1):
         per_epoch = PrettyTable(['Epoch #', 'Train loss', 'Train Accuracy', 'Train Correct', 'Train Total', 'Val loss', 'Top-1 Accuracy', 'Top-5 Accuracy', 'Top-1 Correct', 'Top-5 Correct', 'Val Total', 'Time(secs)'])
