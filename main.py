@@ -96,6 +96,9 @@ if __name__ == '__main__':
     parser.add_argument('--tau', type=float, default=0.95, metavar='TAU', 
         help='threeshold used by proxy label algorithm rate (default: 0.95)')
 
+    parser.add_argument('--proxy_interval', type=int, default=10, metavar='pi',
+                        help='After how many epochs you want to use unsupervised data (default: 10)')
+
     # Printing Information
     args = parser.parse_args()
     

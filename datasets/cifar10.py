@@ -6,9 +6,15 @@ import torchvision
 import random
 
 class CIFAR10Dataset(Dataset):
+	storage = None
+
 	def __init__(self, is_train = True, supervised = True, data_transforms = None):
-		self.data = list(torchvision.datasets.CIFAR10("data/", train = True, transform = data_transforms, download = False))
-		random.shuffle(self.data)
+		if CIFAR10Dataset.storage is None:
+			CIFAR10Dataset.storage = list(torchvision.datasets.CIFAR10("data/", train = True, transform = data_transforms, download = False))
+			random.shuffle(CIFAR10Dataset.storage)
+		
+		self.data = CIFAR10Dataset.storage
+		
 		if is_train:
 			if supervised:
 				self.data = self.data[0:4000]

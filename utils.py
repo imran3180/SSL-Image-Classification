@@ -8,9 +8,9 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def get_dataset(args):
     data_transforms = data_transformations.__dict__[args.data_transforms]
-    train_supervised_dataset = datasets.__dict__[args.dataset](is_train = True, supervised = True, data_transforms = data_transforms)
-    train_unsupervised_dataset = datasets.__dict__[args.dataset](is_train = True, supervised = False, data_transforms = data_transforms)
-    val_dataset = datasets.__dict__[args.dataset](is_train = False, data_transforms = data_transforms)
+    train_supervised_dataset = datasets.__dict__[args.dataset](is_train = True, supervised = True, data_transforms = data_transforms(training = True))
+    train_unsupervised_dataset = datasets.__dict__[args.dataset](is_train = True, supervised = False, data_transforms = data_transforms(training = False))
+    val_dataset = datasets.__dict__[args.dataset](is_train = False, data_transforms = data_transforms(training = False))
     return train_supervised_dataset, train_unsupervised_dataset, val_dataset
 
 def make_loader(args):
