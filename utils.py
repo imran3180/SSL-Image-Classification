@@ -16,8 +16,8 @@ def get_dataset(args):
 def make_loader(args):
     train_supervised_dataset, train_unsupervised_dataset, val_dataset = get_dataset(args)
     train_supervised_loader = torch.utils.data.DataLoader(train_supervised_dataset, batch_size=args.batch_size, shuffle=True, num_workers=1)
-    train_unsupervised_loader = torch.utils.data.DataLoader(train_unsupervised_dataset, batch_size=args.batch_size, shuffle=True, num_workers=1)
-    val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, num_workers=1)
+    train_unsupervised_loader = torch.utils.data.DataLoader(train_unsupervised_dataset, batch_size=args.batch_size_unsupervised, shuffle=True, num_workers=1)
+    val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=args.batch_size_validation, shuffle=False, num_workers=1)
     return train_supervised_loader, train_unsupervised_loader, val_loader
 
 def select_optimizer(args, model):

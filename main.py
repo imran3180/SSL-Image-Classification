@@ -51,8 +51,13 @@ file = open("runs/run-" + current_time, "w")
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='PyTorch GTSRB example')
-    parser.add_argument('--batch-size', type=int, default=32, metavar='N',
-                        help='input batch size for training (default: 32)')
+    parser.add_argument('--batch-size', type=int, default=64, metavar='N',
+                        help='input batch size for training (default: 64)')
+    parser.add_argument('--batch-size-unsupervised', type=int, default=64, metavar='N',
+                        help='input batch size for training (default: 64)')
+    parser.add_argument('--batch-size-validation', type=int, default=64, metavar='N',
+                        help='input batch size for training (default: 64)')
+
     parser.add_argument('--epochs', type=int, default=2, metavar='N',
                         help='number of epochs to train (default: 10)')
     parser.add_argument('--lr', type=float, default=0.01, metavar='LR',
@@ -99,8 +104,14 @@ if __name__ == '__main__':
     parser.add_argument('--proxy_interval', type=int, default=10, metavar='pi',
                         help='After how many epochs you want to use unsupervised data (default: 10)')
 
+    parser.add_argument('--save_interval', type=int, default=20, metavar='si',
+                        help='After how many epochs you want to save your model (default: 20)')
+
     # Printing Information
     args = parser.parse_args()
+
+    args.batch_size_unsupervised = args.batch_size * 100
+    args.batch_size_validation = args.batch_size * 100
     
     options = PrettyTable(['option', 'Value'])
     for key, val in vars(args).items():
@@ -111,7 +122,7 @@ if __name__ == '__main__':
     print(options)
     
     # Calling the specific algorithm
-    algorithms.__dict__[args.algorithm](parser.parse_args(), device = device, file = file, current_time = current_time)
+    algorithms.__dict__[args.algorithm](args, device = device, file = file, current_time = current_time)
 
     file.write("\n")
     file.close()

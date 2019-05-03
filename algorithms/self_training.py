@@ -15,6 +15,7 @@ import time
 import pdb
 from tqdm import tqdm
 from torch.utils.data import ConcatDataset, Subset, DataLoader
+import os
 
 __all__ = ['self_training']   # Only this method will be visible outside the file
 
@@ -117,7 +118,7 @@ def self_training(args, **kwargs):
 		report.add_row([epoch, round(training_loss, 4), "{:.3f}%".format(round((train_correct*100.0)/train_total, 3)), train_correct, train_total, round(validation_loss, 4), "{:.3f}%".format(round((val1_correct*100.0)/val_total, 3)), "{:.3f}%".format(round((val5_correct*100.0)/val_total, 3)), val1_correct, val5_correct, val_total, round(end_time - start_time, 2)])
 		per_epoch.add_row([epoch, round(training_loss, 4), "{:.3f}%".format(round((train_correct*100.0)/train_total, 3)), train_correct, train_total, round(validation_loss, 4), "{:.3f}%".format(round((val1_correct*100.0)/val_total, 3)), "{:.3f}%".format(round((val5_correct*100.0)/val_total, 3)), val1_correct, val5_correct, val_total, round(end_time - start_time, 2)])
 		print(per_epoch)
-		if args.save_model == 'y':
+		if args.save_model == 'y' and epoch%args.save_interval == 0:
 			val_folder = "saved_model/" + current_time
 			if not os.path.isdir(val_folder):
 				os.mkdir(val_folder)
