@@ -152,7 +152,7 @@ def main(args):
     train_loader, val_loader = make_loader(args)
     nclasses = datasets.__dict__[args.dataset].nclasses
     model = models.__dict__[args.arch](nclasses = nclasses, flatten_img_size=pca.components_.shape[0])
-    print('model summary:', summary(model, (3, pca.components_.shape[0], pca.components_.shape[0])))
+    #print('model summary:', summary(model, (3, pca.components_.shape[0], pca.components_.shape[0])))
     model = torch.nn.DataParallel(model).to(device)
     model.to(device)
     optimizer = torch.optim.Adam(model.parameters(),lr=args.lr,)
