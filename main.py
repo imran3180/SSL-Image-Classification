@@ -130,7 +130,7 @@ def validation(model, val_loader, epoch):
             if epoch % args.model_save_interval == 0 and batch_idx == 0:
                 plot_images(data, output, epoch)
     validation_loss /= len(val_loader.dataset)
-    return validation_loss, len(val_loader.dataset)
+    return validation_loss
 
 def train_unsupervised(model, epoch, train_loader, optimizer):
     model.train()
@@ -144,8 +144,11 @@ def train_unsupervised(model, epoch, train_loader, optimizer):
         loss.backward()
         optimizer.step()
         training_loss += loss.item()
-    training_loss /= len(train_loader.dataset)
-    return training_loss, len(train_loader.dataset)
+        if epoch % args.model_save_interval == 0 and batch_idx == 0:
+            plot_images(data, output, epoch)
+            break;
+    # training_loss /= len(train_loader.dataset)
+    return training_loss
 
 def main(args):
     torch.manual_seed(args.seed)
@@ -163,12 +166,12 @@ def main(args):
         per_epoch = PrettyTable(['Epoch #', 'Train loss', 'Train Total', 'Val loss', 'Val Total', 'Time(secs)'])
         start_time = time.time()
         # ===================train and validate=====================
-        training_loss, train_total = train_unsupervised(model, epoch, train_loader, optimizer)
-        validation_loss,val_total = validation(model, val_loader, epoch)
+        training_loss = train_unsupervised(model, epoch, train_loader, optimizer)
+        # validation_loss,val_total = validation(model, val_loader, epoch)
         # ===================pretty printing and logging=====================
         end_time = time.time()
-        report.add_row([epoch, round(training_loss, 4), train_total, round(validation_loss, 4), val_total, round(end_time - start_time, 2)])
-        per_epoch.add_row([epoch, round(training_loss, 4), train_total, round(validation_loss, 4), val_total, round(end_time - start_time, 2)])
+        report.add_row([epoch, round(training_loss, 4), round(validation_loss, 4), round(end_time - start_time, 2)])
+        per_epoch.add_row([epoch, round(training_loss, 4), round(validation_loss, 4), round(end_time - start_time, 2)])
         print(per_epoch)
         # ===================saving model and printing images=====================
         if args.save_model == 'y':
@@ -234,34 +237,34 @@ if __name__ == '__main__':
     file.write(options.get_string())
     file.write("\n")
     print(options)
-
-    if args.hyper_param == 'LR':
-        tuning_report = PrettyTable(['LR', 'Best Val loss'])
-        lrs = [10.0**j for j in range(-6,-1,1)]
-        for lr in lrs:
-            args.lr = lr
-            args.label = args.hyper_param + ':' + str(lr)
-            best_val_loss = main(args)
-            tuning_report.add_row([lr, best_val_loss])
-        file.write(tuning_report.get_string())
-    elif args.hyper_param == 'BS':
-        tuning_report = PrettyTable(['BS', 'Best Val loss'])
-        batch_sizes = [2**j for j in range(3,9,1)]
-        for bs in batch_sizes:
-            args.batch_size = bs
-            args.label = args.hyper_param + ':' + str(bs)
-            best_val_loss = main(args)
-            tuning_report.add_row([bs, best_val_loss])
-        file.write(tuning_report.get_string())
-    elif args.hyper_param == 'EPOCH':
-        tuning_report = PrettyTable(['EPOCH', 'Best Val loss'])
-        epochs = [j for j in range(200, 1050, 200)]
-        for epoch in epochs:
-            args.epochs = epoch
-            args.label = args.hyper_param + ':' + str(epoch)
-            best_val_loss = main(args)
-            tuning_report.add_row([epoch, best_val_loss])
-        file.write(tuning_report.get_string())
+    main(args)
+    # if args.hyper_param == 'LR':
+    #     tuning_report = PrettyTable(['LR', 'Best Val loss'])
+    #     lrs = [10.0**j for j in range(-6,-1,1)]
+    #     for lr in lrs:
+    #         args.lr = lr
+    #         args.label = args.hyper_param + ':' + str(lr)
+    #         best_val_loss = main(args)
+    #         tuning_report.add_row([lr, best_val_loss])
+    #     file.write(tuning_report.get_string())
+    # elif args.hyper_param == 'BS':
+    #     tuning_report = PrettyTable(['BS', 'Best Val loss'])
+    #     batch_sizes = [2**j for j in range(3,9,1)]
+    #     for bs in batch_sizes:
+    #         args.batch_size = bs
+    #         args.label = args.hyper_param + ':' + str(bs)
+    #         best_val_loss = main(args)
+    #         tuning_report.add_row([bs, best_val_loss])
+    #     file.write(tuning_report.get_string())
+    # elif args.hyper_param == 'EPOCH':
+    #     tuning_report = PrettyTable(['EPOCH', 'Best Val loss'])
+    #     epochs = [j for j in range(200, 1050, 200)]
+    #     for epoch in epochs:
+    #         args.epochs = epoch
+    #         args.label = args.hyper_param + ':' + str(epoch)
+    #         best_val_loss = main(args)
+    #         tuning_report.add_row([epoch, best_val_loss])
+    #     file.write(tuning_report.get_string())
     # best_validation_loss = main(parser.parse_args())
     file.write("\n")
     file.close()
