@@ -1,0 +1,3 @@
+[submodule "SSL_GANs"]
+	path = SSL_GANs
+	url = git@https://github.com/imran3180/SSL-Image-Classification/SSL_GANs
