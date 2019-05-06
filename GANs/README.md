@@ -1,4 +1,4 @@
-test
+
 # Improved GAN (Semi-supervised GAN)
 This is an implementation of *Semi-supervised generative adversarial network* in the paper [Improved Techniques for Training GANs](https://arxiv.org/abs/1606.03498) for **Mnist** dataset.
 This method and its extensions have marvellous performance on traditional CV datasets, and remain state-of-art (by the end of November, 2017).
