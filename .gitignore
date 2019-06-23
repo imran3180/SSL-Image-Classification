@@ -6,3 +6,4 @@ saved_model
 *.pth
 *.csv
 .DS_Store
+._*

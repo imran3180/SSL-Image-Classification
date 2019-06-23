@@ -12,6 +12,7 @@ import datetime
 import time
 import pdb
 from tqdm import tqdm
+from torch.optim.lr_scheduler import LambdaLR
 
 
 __all__ = ['just_supervised']   # Only this method will be visible outside the file
@@ -56,9 +57,15 @@ def just_supervised(args, **kwargs):
     nclasses = datasets.__dict__[args.dataset].nclasses
     model = models.__dict__[args.arch](nclasses = nclasses)
     model = torch.nn.DataParallel(model).to(device)
+    if(args.load_saved_model == 'y'):
+        saved_model_dict = torch.load(args.saved_model_filepath)
+        model.load_state_dict(saved_model_dict, strict=False)
+
     model.to(device)
     criterion = nn.CrossEntropyLoss().to(device)
     optimizer = utils.select_optimizer(args, model)
+    lr_lambda = lambda epoch: 0.02 ** (epoch//60)
+    scheduler = LambdaLR(optimizer, lr_lambda)
     train_loader, _, val_loader = utils.make_loader(args)
     report = PrettyTable(['Epoch #', 'Train loss', 'Train Accuracy', 'Train Correct', 'Train Total', 'Val loss', 'Top-1 Accuracy', 'Top-5 Accuracy', 'Top-1 Correct', 'Top-5 Correct', 'Val Total', 'Time(secs)'])
     for epoch in range(1, args.epochs + 1):
@@ -76,5 +83,7 @@ def just_supervised(args, **kwargs):
                 os.mkdir(val_folder)
             save_model_file = val_folder + '/model_' + str(epoch) +'.pth'
             torch.save(model.state_dict(), save_model_file)
+        if(args.arch == 'rotnet'):
+            scheduler.step()
         # print('\nSaved model to ' + model_file + '. You can run `python evaluate.py --model' + model_file + '` to generate the Kaggle formatted csv file')
     file.write(report.get_string())

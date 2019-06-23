@@ -1,2 +1,2 @@
-from .just_supervised import *
+from .supervised import *
 from .self_training import *

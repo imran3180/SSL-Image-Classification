@@ -51,13 +51,14 @@ file = open("runs/run-" + current_time, "w")
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='PyTorch GTSRB example')
-    parser.add_argument('--batch-size', type=int, default=32, metavar='N',
+    parser.add_argument('--batch-size', type=int, default=32
+        , metavar='N',
                         help='input batch size for training (default: 32)')
     parser.add_argument('--epochs', type=int, default=2, metavar='N',
                         help='number of epochs to train (default: 10)')
-    parser.add_argument('--lr', type=float, default=0.01, metavar='LR',
+    parser.add_argument('--lr', type=float, default=0.1, metavar='LR',
                         help='learning rate (default: 0.01)')
-    parser.add_argument('--momentum', type=float, default=0.5, metavar='M',
+    parser.add_argument('--momentum', type=float, default=0.9, metavar='M',
                         help='SGD momentum (default: 0.5)')
     parser.add_argument('--seed', type=int, default=1, metavar='S',
                         help='random seed (default: 1)')
@@ -88,13 +89,19 @@ if __name__ == '__main__':
                             ' (default: tensor_transform)')
 
     # Algorithm & Related Fields
-    parser.add_argument('--algorithm', metavar='ALGO', default='just_supervised',
+    parser.add_argument('--algorithm', metavar='ALGO', default='supervised',
                         choices=algorithms_names,
                         help='Algorithms: ' +
                             ' | '.join(algorithms_names) +
-                            ' (default: just_supervised)')
+                            ' (default: supervised)')
+    parser.add_argument('--load_saved_model', type=str, default='n', metavar='LOAD_SAVED_MODEL',
+                        help='Do you wish to run the model pre-trained on unlabelled dataset or not. (y) for yes')
+
+    parser.add_argument('--saved-model-filepath', type=str, default='', metavar='SAVED_MODEL_FOLDER',
+                        help='Filepath of the saved model, to be given id load_saved_model is set to y')
+
     parser.add_argument('--tau', type=float, default=0.95, metavar='TAU', 
-        help='threeshold used by proxy label algorithm rate (default: 0.95)')
+        help='threshold used by proxy label algorithm rate (default: 0.95)')
 
     # Printing Information
     args = parser.parse_args()
@@ -106,7 +113,7 @@ if __name__ == '__main__':
     file.write(options.get_string())
     file.write("\n")
     print(options)
-    
+
     # Calling the specific algorithm
     algorithms.__dict__[args.algorithm](parser.parse_args(), device = device, file = file, current_time = current_time)
 

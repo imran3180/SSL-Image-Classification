@@ -2,7 +2,9 @@
 import torch.optim as optim
 import datasets
 import torch
+import torch.nn as nn
 import data_transformations
+import math
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -27,7 +29,6 @@ def select_optimizer(args, model):
         optimizer = optim.Adam(model.parameters(), lr=0.001, betas=(0.9, 0.999), eps=1e-08, weight_decay=0, amsgrad=False)
     return optimizer
 
-
 def accuracy(output, target, topk=(1,)):
     """Computes the accuracy over the k top predictions for the specified values of k"""
     with torch.no_grad():
@@ -43,7 +44,6 @@ def accuracy(output, target, topk=(1,)):
             correct_k = correct[:k].view(-1).sum()
             res.append(correct_k)
         return res
-
 
 def compute_mean_and_std():
 	# dataset = datasets.ssl_data(is_train = True, supervised = True, data_transforms = data_transformations.tensor_transform)
